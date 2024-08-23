@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera App</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css"
+          integrity="sha384-WskhaSGFgHYWDcbwN70/dfYBj47jz9qbsMId/iRN3ewGhXQFZCSftd1LZCfmhktB" crossorigin="anonymous">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,900" rel="stylesheet">
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Roboto', sans-serif;
+            color: #3a3f52;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 90%;
+            text-align: center;
+        }
+
+        #camera, #photoPreview, #videoPlayback {
+            width: 100%;
+            max-width: 450px;
+            height: auto;
+        }
+
+        button {
+            font-size: 20px; /* 크기를 2/3로 줄임 */
+            color: #3a3f52;
+            background-color: #6fec02;
+            padding: 15px 20px; /* 크기를 2/3로 줄임 */
+            margin: 5px; /* 크기를 2/3로 줄임 */
+            border: none;
+            border-radius: 10px;
+            font-weight: 400;
+            letter-spacing: .1em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        button img {
+            margin-right: 5px; /* 크기를 2/3로 줄임 */
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: row; /* 버튼을 가로로 배치 */
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap; /* 버튼이 작아졌을 때 줄바꿈이 되도록 함 */
+        }
+
+        .hide {
+            display: none;
+        }
+
+        video, img {
+            cursor: pointer;
+        }
+
+        #backButton {
+            position: fixed;
+            top: 10px;
+            left: 10px; /* 기본 코드에 맞춤 */
+            font-size: 20px; /* 크기를 2/3로 줄임 */
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: #3a3f52;
+            padding: 10px; /* 패딩 조정 */
+            width: 70px; /* 버튼 너비 설정 */
+        }
+
+        footer {
+            position: fixed;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: #6c757d;
+            font-size: 18px;
+            font-weight: 300;
+        }
+    </style>
+</head>
+<body>
+<!-- Back 버튼 -->
+<button id="backButton" onclick="history.back()">&#60;</button>
+<div class="container">
+    <video id="camera" autoplay muted playsinline class="hide"></video>
+    <video id="videoPlayback" class="hide" controls></video>
+    <img id="photoPreview" class="hide"/>
+    <div id="buttonContainer" class="button-container hide">
+        <button id="recordButton" class="hide"><img
+                src="https://img.icons8.com/material-outlined/24/000000/video-call.png"/> Record Video
+        </button>
+        <button id="photoButton" class="hide"><img src="https://img.icons8.com/material-outlined/24/000000/camera.png"/>
+            Take Photo
+        </button>
+        <button id="switchCameraButton"><img
+                src="https://img.icons8.com/material-outlined/24/000000/switch-camera.png"/> Switch Camera
+        </button>
+    </div>
+    <div class="button-container">
+        <button id="retakeButton" class="hide">Retake</button>
+        <button id="convertButton" class="hide">Convert</button>
+    </div>
+</div>
+<script>
+    const camera = document.getElementById('camera');
+    const videoPlayback = document.getElementById('videoPlayback');
+    const photoPreview = document.getElementById('photoPreview');
+    const recordButton = document.getElementById('recordButton');
+    const photoButton = document.getElementById('photoButton');
+    const retakeButton = document.getElementById('retakeButton');
+    const convertButton = document.getElementById('convertButton');
+    const switchCameraButton = document.getElementById('switchCameraButton');
+    const buttonContainer = document.getElementById('buttonContainer');
+    let stream = null;
+    let recorder = null;
+    let isRecording = false;
+    let recordedChunks = [];
+    let currentCamera = 'user'; // 초기 설정은 전면 카메라
+
+    function startCamera() {
+
+
+        navigator.mediaDevices.getUserMedia({video: {facingMode: currentCamera}, audio: true})
+            .then(function (s) {
+                stream = s;
+                camera.srcObject = stream;
+                camera.classList.remove('hide');
+                buttonContainer.classList.remove('hide');
+                recordButton.classList.remove('hide');
+                photoButton.classList.remove('hide');
+            }).catch(function (err) {
+            console.error('Error accessing media devices.', err);
+            alert('Error accessing camera or microphone: ' + err.message);
+        });
+    }
+
+    recordButton.onclick = function () {
+        if (!isRecording) {
+            startRecording();
+            photoButton.classList.add('hide');
+            switchCameraButton.classList.add('hide');
+        } else {
+            stopRecording();
+        }
+    };
+
+    photoButton.onclick = function () {
+        takePhoto();
+        recordButton.classList.add('hide');
+        switchCameraButton.classList.add('hide');
+    };
+
+    function startRecording() {
+        recordedChunks = [];
+        recorder = new MediaRecorder(stream);
+        recorder.ondataavailable = (e) => recordedChunks.push(e.data);
+        recorder.onstop = () => {
+            const blob = new Blob(recordedChunks, {type: 'video/mp4'});
+            const url = URL.createObjectURL(blob);
+            videoPlayback.src = url;
+            videoPlayback.classList.remove('hide');
+            camera.classList.add('hide');
+            photoPreview.classList.add('hide');
+            retakeButton.classList.remove('hide');
+            convertButton.classList.remove('hide');
+            recordButton.classList.add('hide');
+
+            // Store video data in localStorage
+            localStorage.setItem('capturedMedia', url);
+            localStorage.setItem('mediaType', 'video');
+
+            // Redirect to camera_convert.html
+            window.location.href = 'camera_convert.html';
+        };
+        recorder.start();
+        recordButton.innerHTML = '<img src="https://img.icons8.com/material-rounded/24/000000/stop.png"/> Stop';
+        isRecording = true;
+    }
+
+    function stopRecording() {
+        recorder.stop();
+        recordButton.innerHTML = '<img src="https://img.icons8.com/material-outlined/24/000000/video-call.png"/> Record Video';
+        isRecording = false;
+    }
+
+    function takePhoto() {
+        const canvas = document.createElement('canvas');
+        canvas.width = camera.videoWidth;
+        canvas.height = camera.videoHeight;
+        const context = canvas.getContext('2d');
+        context.drawImage(camera, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/png');
+        photoPreview.src = dataUrl;
+        photoPreview.classList.remove('hide');
+        camera.classList.add('hide');
+        videoPlayback.classList.add('hide');
+        retakeButton.classList.remove('hide');
+        convertButton.classList.remove('hide');
+        photoButton.classList.add('hide');
+
+        // Store photo data in localStorage
+        localStorage.setItem('capturedMedia', dataUrl);
+        localStorage.setItem('mediaType', 'photo');
+    }
+
+    retakeButton.onclick = function () {
+        camera.classList.remove('hide');
+        videoPlayback.classList.add('hide');
+        photoPreview.classList.add('hide');
+        retakeButton.classList.add('hide');
+        convertButton.classList.add('hide');
+        recordButton.classList.remove('hide');
+        photoButton.classList.remove('hide');
+        switchCameraButton.classList.remove('hide');
+        startCamera();
+    };
+
+    convertButton.onclick = function () {
+        // Redirect to camera_invert.html
+        window.location.href = 'camera_convert.html';
+    };
+
+    switchCameraButton.onclick = function () {
+        currentCamera = currentCamera === 'user' ? 'environment' : 'user';
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+        startCamera();
+    };
+
+    window.onload = startCamera;
+</script>
+<footer>We are P.P</footer>
+</body>
+</html>
